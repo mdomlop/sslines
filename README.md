@@ -1,4 +1,4 @@
 sslines
 =======
 
-Dibuja líneas con SDL
+Draw lines with python and SDL (pygame)

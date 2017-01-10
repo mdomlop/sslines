@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 # -*- coding: utf-8 -*-
 # cpcssaver.py
 # Versión: 0.1 [dom sep 30 13:29:02 CEST 2012]

@@ -1,6 +1,7 @@
-#!/usr/bin/python2
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 # cpcssaver.py
+# Works with python2 and python3
 # Versión: 0.1 [dom sep 30 13:29:02 CEST 2012]
 # TODO: Añadir sonido aleatorio con algo como winsound :(
 

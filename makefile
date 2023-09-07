@@ -1,30 +1,54 @@
-NAME='sslines'
-PREFIX='/usr'
-TEMPDIR := $(shell mktemp -u --suffix .$(NAME))
+SOURCE = sslines.c
+NAME = $(shell grep -m1 PROGRAM src/sslines.c | cut -d\" -f2)
+EXECUTABLE = $(shell grep -m1 EXECUTABLE src/sslines.c | cut -d\" -f2)
+DESCRIPTION = $(shell grep -m1 DESCRIPTION src/sslines.c | cut -d\" -f2)
+VERSION = $(shell grep -m1 VERSION src/sslines.c | cut -d\" -f2)
+AUTHOR = $(shell grep -m1 AUTHOR src/sslines.c | cut -d\" -f2)
+MAIL := $(shell grep -m1 MAIL src/sslines.c | cut -d\" -f2 | tr '[A-Za-z]' '[N-ZA-Mn-za-m]')
+URL = $(shell grep -m1 URL src/sslines.c | cut -d\" -f2)
+LICENSE = GPL3
 
-install:
-	install -Dm 755 src/$(NAME).py $(PREFIX)/bin/$(NAME)
-	install -Dm 644 LICENSE $(PREFIX)/share/licenses/$(NAME)/COPYING
-	install -Dm 644 README.md $(PREFIX)/share/doc/$(NAME)/README
+PREFIX = '/usr'
+DESTDIR = ''
+
+ARCHPKG = $(EXECUTABLE)-$(VERSION)-1-$(shell uname -m).pkg.tar.xz
+
+# SDL no permite la compilación estática?
+CFLAGS = -O2 -Wall -pedantic -std=c11 -lSDL2 -lm
+
+src/$(EXECUTABLE): src/$(EXECUTABLE).c
+
+opti: CFLAGS = -march=native -mtune=native -O2 -Wall -pedantic -std=c11 -lSDL2 -lm
+opti: src/$(EXECUTABLE)
+install_opti: opti install
+
+install: src/$(EXECUTABLE) LICENSE README.md
+	install -Dm 755 src/$(EXECUTABLE) $(DESTDIR)$(PREFIX)/bin/$(EXECUTABLE)
+	install -Dm 644 LICENSE $(DESTDIR)$(PREFIX)/share/licenses/$(EXECUTABLE)/COPYING
+	install -Dm 644 README.md $(DESTDIR)$(PREFIX)/share/doc/$(EXECUTABLE)/README
 
 uninstall:
-	rm -f $(PREFIX)/bin/$(NAME)
-	rm -f $(PREFIX)/share/licenses/$(NAME)/COPYING
-	rm -f $(PREFIX)/share/doc/$(NAME)/README
+	rm -f $(PREFIX)/bin/$(EXECUTABLE)
+	rm -f $(PREFIX)/share/licenses/$(EXECUTABLE)/LICENSE
 
-clean:
-	rm -f packages/pacman/$(NAME)-*.pkg.tar.xz
+arch_clean:
+	rm -rf pkg
+	rm -f $(ARCHPKG)
 
-togit: clean
-	git add .
-	git commit -m "Updated from makefile"
-	git push origin
+clean: arch_clean
+	rm -rf src/$(EXECUTABLE)
 
-pacman: clean
-	mkdir $(TEMPDIR)
-	cp packages/pacman/PKGBUILD $(TEMPDIR)/
-	cd $(TEMPDIR); makepkg -dr
-	cp $(TEMPDIR)/$(NAME)-*.pkg.tar.xz packages/pacman/
-	rm -rf $(TEMPDIR)
+arch_pkg: $(ARCHPKG)
+$(ARCHPKG): PKGBUILD makefile src/$(EXECUTABLE) LICENSE README.md
+	sed -i "s|pkgname=.*|pkgname=$(EXECUTABLE)|" PKGBUILD
+	sed -i "s|pkgver=.*|pkgver=$(VERSION)|" PKGBUILD
+	sed -i "s|pkgdesc=.*|pkgdesc='$(DESCRIPTION)'|" PKGBUILD
+	sed -i "s|url=.*|url='$(URL)'|" PKGBUILD
+	sed -i "s|license=.*|license=('$(LICENSE)')|" PKGBUILD
+	makepkg -df
+	@echo
 	@echo Package done!
-	@echo Package is in `pwd`/packages/pacman/
+	@echo You can install it as root with:
+	@echo pacman -U $@
+
+.PHONY: clean arch_clean uninstall

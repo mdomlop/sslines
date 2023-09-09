@@ -1,4 +1,4 @@
-/* 
+/*
 *  Genera líneas y sonido
 *  apt install libsdl2-dev
 *  pacman -S sdl2
@@ -31,62 +31,46 @@ int width = 640;
 int height = 480;
 
 short fullscreen = 0;
+short mute = 0;
 short rnd = 1;
 short idx = 0;
 short bgidx = 0;
 
 short timeout = 100;  /* Para borrar la pantalla */
 
-short rgb[] = {0, 0, 0};
-
-short origin[] = {0, 0};
-short destination[] = {0, 0};
-
 float frequency;
 int duration;
 int duration_incr = 100;
 
-short bgcolor[10][3] = {
-    {0, 0, 0},       /* Negro */
-    {125, 125, 125}, /* Gris */
-    {255, 255, 255}, /* Blanco */
-    {255, 0, 0},     /* Rojo */
-    {255, 125, 0},   /* Naranja */
-    {255, 255, 0},   /* Amarillo */
-    {0, 255, 0},     /* Verde */
-    {0, 255, 255},   /* Cian */
-    {0, 0, 255},     /* Azul */
-    {255, 0, 255},   /* Magenta */
-};
+struct choord {
+	short x;
+	short y;
+} origin, destination = { 0, 0 };
 
-char colorsName[10][10] = {
-	"Negro",
-	"Gris",
-	"Blanco",
-	"Rojo",
-	"Naranja",
-	"Amarillo",
-     	"Verde",
-	"Cian",
-       	"Azul",
-       	"Magenta"
-};
+struct rgb {
+	short r;
+	short g;
+	short b;
+} color = { 0, 0, 0 };
 
-char notesName[10][5] = {
-	"Do4", "Re4", "Mi4", "Fa4", "Sol4", "La4", "Si4",
-	"Do5", "Re5", "Mi5"};
-
-float notesFreq[10] = {
-    261.626, /* Do4 */
-    293.665, /* Re4 */
-    329.628, /* Mi4 */
-    349.228, /* Fa4 */
-    391.995, /* Sol4 */
-    440.000, /* La4 */
-    493.883, /* Si4 */
-    523.251, /* Do5 */
-    587.330, /* Re5 */
-    659.255  /* Mi5 */
+struct colornote {
+	char *note;
+	float freq;
+	char *color;
+	short r;
+	short g;
+	short b;
+} cntab[] = {
+	"Do4",  261.626, "Negro",    0,   0,   0,
+	"Re4",  293.665, "Gris",     125, 125, 125,
+	"Mi4",  329.628, "Blanco",   255, 255, 255,
+	"Fa4",  349.228, "Rojo",     255, 0,   0,
+	"Sol4", 391.995, "Naranja",  255, 125, 0,
+	"La4",  440.000, "Amarillo", 255, 255, 0,
+	"Si4",  493.883, "Verde",    0,   255, 0,
+	"Do5",  523.251, "Cian",     0,   255, 255,
+	"Re5",  587.330, "Azul",     0,   0,   255,
+	"Mi5",  659.255, "Magenta",  255, 0,   255,
 };
 
 SDL_AudioSpec audioSpec;
@@ -116,21 +100,22 @@ void play_sound()
 void rnd_color(void)
 {
     short max = 255;
-    rgb[0] = random(max);
-    rgb[1] = random(max);
-    rgb[2] = random(max);
+    color.r = random(max);
+    color.g = random(max);
+    color.b = random(max);
 }
 
 void set_bgcolor(SDL_Renderer *canvas)
 {
-    SDL_SetRenderDrawColor(canvas, bgcolor[bgidx][0], bgcolor[bgidx][1], bgcolor[bgidx][2], 255);
+    SDL_SetRenderDrawColor(canvas,
+                           cntab[bgidx].r, cntab[bgidx].g, cntab[bgidx].b, 255);
     SDL_RenderClear(canvas);
 }
 
-int dist_calc(short *orig, short *dest)
+int dist_calc(void)
 {
-    int dx = dest[0] - orig[0];
-    int dy = dest[1] - orig[1];
+    int dx = destination.x - origin.x;
+    int dy = destination.y - origin.y;
 
     return (int)sqrt(dx * dx + dy * dy);
 }
@@ -146,8 +131,9 @@ void cls(SDL_Renderer *canvas, short x)
 
 void drawline(SDL_Renderer *canvas)
 {
-    SDL_SetRenderDrawColor(canvas, rgb[0], rgb[1], rgb[2], 255);
-    SDL_RenderDrawLine(canvas, origin[0], origin[1], destination[0], destination[1]);
+    SDL_SetRenderDrawColor(canvas, color.r, color.g, color.b, 255);
+    SDL_RenderDrawLine(canvas,
+                       origin.x, origin.y, destination.x, destination.y);
 }
 
 void help(void)
@@ -157,6 +143,7 @@ void help(void)
            "****************************\n\n"
            "* Presiona ESCAPE o Q para salir.\n"
            "* Presiona ESPACIO o P para pausar la demo.\n"
+           "* Presiona M para desactivar o activar el sonido.\n"
            "* Presiona INTRO o F para intercambiar"
            " a pantalla completa.\n"
            "* Presiona CONTROL o C para limpiar la pantalla.\n"
@@ -191,7 +178,8 @@ int main(int argc, char *argv[])
     }
 
     /* Crea un área de dibujo en la ventana (pantalla) */
-    SDL_Renderer *canvas = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    SDL_Renderer *canvas = SDL_CreateRenderer(window, -1,
+                                              SDL_RENDERER_ACCELERATED);
     if (canvas == NULL)
     {
         fprintf(stderr, "Error al crear el lienzo: %s\n", SDL_GetError());
@@ -218,12 +206,12 @@ int main(int argc, char *argv[])
     {
         int distance;
 
-        origin[0] = destination[0];
-        origin[1] = destination[1];
-        destination[0] = random(width);
-        destination[1] = random(height);
+        origin.x = destination.x;
+        origin.y = destination.y;
+        destination.x = random(width);
+        destination.y = random(height);
 
-        distance = dist_calc(origin, destination);
+        distance = dist_calc();
 
         if (rnd)
         {
@@ -234,15 +222,18 @@ int main(int argc, char *argv[])
         else
         {
             idx = random(10); /* Para conocer la nota tocada. */
-            frequency = notesFreq[idx];
-	    duration = distance + duration_incr; /* Depende de la longitud de la línea. */
-            rgb[0] = bgcolor[idx][0];
-            rgb[1] = bgcolor[idx][1];
-            rgb[2] = bgcolor[idx][2];
+            frequency = cntab[idx].freq;
+            duration = distance + duration_incr; /* = longitud de la línea. */
+            color.r = cntab[idx].r;
+            color.g = cntab[idx].g;
+            color.b = cntab[idx].b;
         }
 
         drawline(canvas);
-        play_sound();
+
+        if (mute) SDL_Delay(duration);
+        else play_sound();
+
         cls(canvas, timeout);      /* Borra la pantalla aleatoriamente */
 
         SDL_RenderPresent(canvas); /* Actualiza la pantalla */
@@ -298,49 +289,17 @@ int main(int argc, char *argv[])
                         fullscreen = 1;
                     }
                     break;
-                case SDLK_0:
-                    bgidx = 0;
-		    printf("%d: %s\n", bgidx, colorsName[bgidx]);
-                    break;
-                case SDLK_1:
-                    bgidx = 1;
-		    printf("%d: %s\n", bgidx, colorsName[bgidx]);
-                    break;
-                case SDLK_2:
-                    bgidx = 2;
-		    printf("%d: %s\n", bgidx, colorsName[bgidx]);
-                    break;
-                case SDLK_3:
-                    bgidx = 3;
-		    printf("%d: %s\n", bgidx, colorsName[bgidx]);
-                    break;
-                case SDLK_4:
-                    bgidx = 4;
-		    printf("%d: %s\n", bgidx, colorsName[bgidx]);
-                    break;
-                case SDLK_5:
-                    bgidx = 5;
-		    printf("%d: %s\n", bgidx, colorsName[bgidx]);
-                    break;
-                case SDLK_6:
-                    bgidx = 6;
-		    printf("%d: %s\n", bgidx, colorsName[bgidx]);
-                    break;
-                case SDLK_7:
-                    bgidx = 7;
-		    printf("%d: %s\n", bgidx, colorsName[bgidx]);
-                    break;
-                case SDLK_8:
-                    bgidx = 8;
-		    printf("%d: %s\n", bgidx, colorsName[bgidx]);
-                    break;
-                case SDLK_9:
-                    bgidx = 9;
-		    printf("%d: %s\n", bgidx, colorsName[bgidx]);
-                    break;
-                case SDLK_F1:
-                case SDLK_h:
-                    help();
+                case SDLK_m:
+                    if (mute)
+                    {
+                        puts("Sonido encendido.");
+                        mute = 0;
+                    }
+                    else
+                    {
+                        puts("Sonido apagado.");
+                        mute = 1;
+                    }
                     break;
                 case SDLK_TAB:
                 case SDLK_r:
@@ -355,18 +314,64 @@ int main(int argc, char *argv[])
                         puts("Modo aleatorio encendido.");
                     }
                     break;
+                case SDLK_0:
+                    bgidx = 0;
+		    printf("%d: %s\n", bgidx, cntab[bgidx].color);
+                    break;
+                case SDLK_1:
+                    bgidx = 1;
+		    printf("%d: %s\n", bgidx, cntab[bgidx].color);
+                    break;
+                case SDLK_2:
+                    bgidx = 2;
+		    printf("%d: %s\n", bgidx, cntab[bgidx].color);
+                    break;
+                case SDLK_3:
+                    bgidx = 3;
+		    printf("%d: %s\n", bgidx, cntab[bgidx].color);
+                    break;
+                case SDLK_4:
+                    bgidx = 4;
+		    printf("%d: %s\n", bgidx, cntab[bgidx].color);
+                    break;
+                case SDLK_5:
+                    bgidx = 5;
+		    printf("%d: %s\n", bgidx, cntab[bgidx].color);
+                    break;
+                case SDLK_6:
+                    bgidx = 6;
+		    printf("%d: %s\n", bgidx, cntab[bgidx].color);
+                    break;
+                case SDLK_7:
+                    bgidx = 7;
+		    printf("%d: %s\n", bgidx, cntab[bgidx].color);
+                    break;
+                case SDLK_8:
+                    bgidx = 8;
+		    printf("%d: %s\n", bgidx, cntab[bgidx].color);
+                    break;
+                case SDLK_9:
+                    bgidx = 9;
+		    printf("%d: %s\n", bgidx, cntab[bgidx].color);
+                    break;
+                case SDLK_F1:
+                case SDLK_h:
+                    help();
+                    break;
                 case SDLK_UP:
                 case SDLK_a:  /* add */
                     if (duration_incr < 1000)
                         duration_incr += 1;
                     duration_incr += 1;
-                    printf("Duración del sonido: %d (incr: %d)\n", duration, duration_incr);
+                    printf("Duración del sonido: %d (incr: %d)\n",
+                           duration, duration_incr);
                     break;
                 case SDLK_DOWN:
                 case SDLK_s:  /* substract */
                     if (duration_incr > 0)
                         duration_incr -= 1;
-                    printf("Duración del sonido: %d (incr: %d)\n", duration, duration_incr);
+                    printf("Duración del sonido: %d (incr: %d)\n",
+                           duration, duration_incr);
                     break;
                 case SDLK_RIGHT:
                 case SDLK_n:  /* next color */

@@ -1,54 +1,25 @@
-SOURCE = sslines.c
-NAME = $(shell grep -m1 PROGRAM src/sslines.c | cut -d\" -f2)
-EXECUTABLE = $(shell grep -m1 EXECUTABLE src/sslines.c | cut -d\" -f2)
-DESCRIPTION = $(shell grep -m1 DESCRIPTION src/sslines.c | cut -d\" -f2)
-VERSION = $(shell grep -m1 VERSION src/sslines.c | cut -d\" -f2)
-AUTHOR = $(shell grep -m1 AUTHOR src/sslines.c | cut -d\" -f2)
-MAIL := $(shell grep -m1 MAIL src/sslines.c | cut -d\" -f2 | tr '[A-Za-z]' '[N-ZA-Mn-za-m]')
-URL = $(shell grep -m1 URL src/sslines.c | cut -d\" -f2)
-LICENSE = GPL3
+SOURCES = source/sslines.c
+INFO = source/sslines.c
 
-PREFIX = '/usr'
-DESTDIR = ''
+include mk/info.mk
+include mk/elf.mk
+include mk/install.mk
+include mk/arch.mk
+include mk/debian.mk
+include mk/ocs.mk
+include mk/termux.mk
+include mk/win.mk
+include mk/debug.mk
+include mk/opti.mk
+include mk/static.mk
+include mk/opti_static.mk
 
-ARCHPKG = $(EXECUTABLE)-$(VERSION)-1-$(shell uname -m).pkg.tar.xz
+default: elf
 
-# SDL no permite la compilación estática?
-CFLAGS = -O2 -Wall -pedantic -std=c11 -lSDL2 -lm
+all: all_bin all_pkg
+all_pkg: pkg_arch pkg_debian pkg_ocs pkg_termux
+all_bin: default exe debug opti static opti_static
 
-src/$(EXECUTABLE): src/$(EXECUTABLE).c
+clean: clean_elf clean_exe clean_arch clean_debian clean_ocs clean_termux clean_debug clean_opti clean_static clean_opti_static
 
-opti: CFLAGS = -march=native -mtune=native -O2 -Wall -pedantic -std=c11 -lSDL2 -lm
-opti: src/$(EXECUTABLE)
-install_opti: opti install
-
-install: src/$(EXECUTABLE) LICENSE README.md
-	install -Dm 755 src/$(EXECUTABLE) $(DESTDIR)$(PREFIX)/bin/$(EXECUTABLE)
-	install -Dm 644 LICENSE $(DESTDIR)$(PREFIX)/share/licenses/$(EXECUTABLE)/COPYING
-	install -Dm 644 README.md $(DESTDIR)$(PREFIX)/share/doc/$(EXECUTABLE)/README
-
-uninstall:
-	rm -f $(PREFIX)/bin/$(EXECUTABLE)
-	rm -f $(PREFIX)/share/licenses/$(EXECUTABLE)/LICENSE
-
-arch_clean:
-	rm -rf pkg
-	rm -f $(ARCHPKG)
-
-clean: arch_clean
-	rm -rf src/$(EXECUTABLE)
-
-arch_pkg: $(ARCHPKG)
-$(ARCHPKG): PKGBUILD makefile src/$(EXECUTABLE) LICENSE README.md
-	sed -i "s|pkgname=.*|pkgname=$(EXECUTABLE)|" PKGBUILD
-	sed -i "s|pkgver=.*|pkgver=$(VERSION)|" PKGBUILD
-	sed -i "s|pkgdesc=.*|pkgdesc='$(DESCRIPTION)'|" PKGBUILD
-	sed -i "s|url=.*|url='$(URL)'|" PKGBUILD
-	sed -i "s|license=.*|license=('$(LICENSE)')|" PKGBUILD
-	makepkg -df
-	@echo
-	@echo Package done!
-	@echo You can install it as root with:
-	@echo pacman -U $@
-
-.PHONY: clean arch_clean uninstall
+purge: clean purge_arch purge_debian purge_ocs purge_termux
